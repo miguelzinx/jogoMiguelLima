@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Jogo SENAC Joinville</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body, html {
+      height: 100%;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+      background: url('senac.png') no-repeat center center/cover;
+      background-size: cover;
+      position: relative;
+    }
+
+    .scoreboard, .timer {
+      position: absolute;
+      background: rgba(255,255,255,0.8);
+      padding: 10px 15px;
+      border-radius: 10px;
+      font-weight: bold;
+      z-index: 100;
+    }
+    .scoreboard { top: 10px; left: 10px; }
+    .timer { top: 10px; right: 10px; }
+
+    .item {
+      position: absolute;
+      top: -100px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100px;
+      cursor: pointer;
+    }
+    .item img { width: 100px; height: auto; }
+
+    .nuvem {
+      background: #fff;
+      padding: 5px 10px;
+      border-radius: 20px;
+      margin-top: 5px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+      font-size: 22px;
+      text-align: center;
+    }
+
+    .end-screen {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255,255,255,0.95);
+      padding: 30px;
+      border-radius: 15px;
+      text-align: center;
+      display: none;
+      z-index: 999;
+      width: 300px;
+    }
+    .end-screen h2 { margin-bottom: 10px; }
+    .end-screen button {
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      background-color: #0077c8;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    .ranking {
+      margin-top: 20px;
+      text-align: left;
+    }
+    .ranking h3 { margin-bottom: 10px; }
+    .ranking ol { padding-left: 20px; }
+
+    /* Tela de login */
+    .login-screen {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255,255,255,0.95);
+      padding: 30px;
+      border-radius: 15px;
+      text-align: center;
+      z-index: 1000;
+      width: 300px;
+    }
+    .login-screen input {
+      display: block;
+      margin: 10px auto;
+      padding: 8px;
+      font-size: 16px;
+      width: 80%;
+    }
+    .login-screen button {
+      padding: 10px 20px;
+      background: #0077c8;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    /* Assinatura */
+    .assinatura {
+      position: absolute;
+      bottom: 15px;
+      left: 15px;
+      color: white;
+      font-size: 18px;
+      font-style: italic;
+      font-weight: bold;
+      z-index: 50;
+      pointer-events: none;
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="scoreboard">Pontos: <span id="score">0</span></div>
+  <div class="timer">Tempo: <span id="time">30</span>s</div>
+
+  <!-- Tela inicial -->
+  <div class="login-screen" id="loginScreen">
+    <h2>Bem-vindo!</h2>
+    <p>Digite seu nome e telefone para jogar:</p>
+    <input type="text" id="nome" placeholder="Seu nome" required>
+    <input type="text" id="telefone" placeholder="Telefone" required>
+    <button onclick="validarLogin()">Começar</button>
+  </div>
+
+  <!-- Tela final -->
+  <div class="end-screen" id="endScreen">
+    <h2>Fim de jogo!</h2>
+    <p>Você marcou <span id="finalScore">0</span> pontos!</p>
+    <div class="ranking" id="ranking"></div>
+    <button onclick="reiniciarJogo()">Jogar Novamente</button>
+  </div>
+
+  <!-- Assinatura -->
+  <div class="assinatura">Miguel Lima - EMI 2025</div>
+
+  <script>
+    const cursosSenac = ["ADS","TI","Enfermagem","ADM","Infraestrutura","Multimídia","Gastronomia","Design","Excel"];
+    const cursosFalsos = ["Barbeiro","Mecânica","Agronomia","Moda","Teatro","Piloto de F1"];
+    const gameTime = 30;
+
+    let score = 0;
+    let timeLeft = gameTime;
+    let gameInterval, itemInterval;
+    let jogadorNome = "";
+    let jogadorTelefone = "";
+
+    // Array para armazenar ranking local
+    let rankingArray = [];
+
+    function validarLogin() {
+      const nome = document.getElementById("nome").value.trim();
+      const telefone = document.getElementById("telefone").value.trim();
+      const proibidas = ["buceta","piroca","pirokudo","foda","caralho"];
+
+      if (!nome || !telefone) {
+        alert("Preencha todos os campos!");
+        return;
+      }
+
+      if (proibidas.some(p => nome.toLowerCase().includes(p))) {
+        alert("Nome inválido!");
+        return;
+      }
+
+      jogadorNome = nome;
+      jogadorTelefone = telefone;
+      document.getElementById("loginScreen").style.display = "none";
+      iniciarJogo();
+    }
+
+    function criarItem() {
+      const isCursoValido = Math.random() < 0.6;
+      const curso = isCursoValido ? cursosSenac[Math.floor(Math.random() * cursosSenac.length)] : cursosFalsos[Math.floor(Math.random() * cursosFalsos.length)];
+
+      const item = document.createElement("div");
+      item.classList.add("item");
+      item.style.left = Math.random() * (window.innerWidth - 100) + "px";
+
+      const imagem = document.createElement("img");
+      imagem.src = "chapeu.png";
+      imagem.alt = "Chapéu";
+
+      const nuvem = document.createElement("div");
+      nuvem.classList.add("nuvem");
+      nuvem.innerText = curso;
+
+      item.appendChild(imagem);
+      item.appendChild(nuvem);
+      document.body.appendChild(item);
+
+      let top = -100;
+      let speed = Math.random() * 1.3 + 1;
+
+      const mover = setInterval(() => {
+        if (timeLeft <= 0) {
+          item.remove();
+          clearInterval(mover);
+          return;
+        }
+        top += speed;
+        item.style.top = top + "px";
+        if (top > window.innerHeight) {
+          item.remove();
+          clearInterval(mover);
+        }
+      }, 16);
+
+      item.addEventListener("click", () => {
+        score += isCursoValido ? 1 : -1;
+        document.getElementById("score").innerText = score;
+        item.remove();
+        clearInterval(mover);
+      });
+    }
+
+    function iniciarJogo() {
+      score = 0;
+      timeLeft = gameTime;
+      document.getElementById("score").innerText = score;
+      document.getElementById("time").innerText = timeLeft;
+      document.getElementById("endScreen").style.display = "none";
+
+      itemInterval = setInterval(criarItem, 700);
+      gameInterval = setInterval(() => {
+        timeLeft--;
+        document.getElementById("time").innerText = timeLeft;
+
+        if (timeLeft <= 0) {
+          clearInterval(gameInterval);
+          clearInterval(itemInterval);
+          document.querySelectorAll(".item").forEach(e => e.remove());
+          mostrarRanking();
+        }
+      }, 1000);
+    }
+
+    function mostrarRanking() {
+      // Adiciona jogador atual ao ranking
+      rankingArray.push({nome: jogadorNome, telefone: jogadorTelefone, pontos: score});
+
+      // Ordena por pontuação decrescente
+      rankingArray.sort((a,b) => b.pontos - a.pontos);
+
+      // Pega os 5 melhores
+      const top5 = rankingArray.slice(0,5);
+
+      let html = "<h3>Ranking Top 5:</h3><ol>";
+      top5.forEach(j => {
+        html += `<li>${j.nome} - ${j.telefone} : ${j.pontos} pontos</li>`;
+      });
+      html += "</ol>";
+
+      document.getElementById("finalScore").innerText = score;
+      document.getElementById("ranking").innerHTML = html;
+      document.getElementById("endScreen").style.display = "block";
+    }
+
+    function reiniciarJogo() {
+      // Pergunta se quer mudar jogador ou manter o mesmo
+      const continuar = confirm("Deseja continuar com o mesmo jogador? \nClique 'Cancelar' para mudar o nome e telefone.");
+      if (!continuar) {
+        // Mostrar tela de login e limpar campos
+        document.getElementById("nome").value = "";
+        document.getElementById("telefone").value = "";
+        document.getElementById("loginScreen").style.display = "block";
+      } else {
+        iniciarJogo();
+      }
+    }
+
+  </script>
+</body>
+</html>
